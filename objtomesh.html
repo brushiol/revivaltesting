@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>obj to rblxmesh</title>
+    <style>
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script>let verts = [];
+let norms = [];
+let texCoords = [];
+let faces = [];
+let fileInput;
+let loaded = false;
+
+// use command to change!
+let size = 5;
+let spin = 0.01;
+
+document.addEventListener("DOMContentLoaded", () => {
+  fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = ".obj";
+  fileInput.addEventListener("change", (event) => handle(event.target.files[0]));
+  document.body.appendChild(fileInput);
+});
+
+function saveData(data, filename) {
+  let blob = new Blob([data], { type: "text/plain" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function handle(file) {
+  if (
+    file.name.endsWith(".obj") ||
+    file.type === "application/octet-stream"
+  ) {
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const base64 = event.target.result.split(",");
+      const text = atob(base64[1]);
+      verts = [];
+      norms = [];
+      texCoords = [];
+      faces = [];
+      from(text);
+      to(file.name);
+      loaded = true;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function from(data) {
+  const lines = data.split("\n");
+  for (let line of lines) {
+    let parts = line.trim().split(/\s+/);
+    if (parts[0] === "v") {
+      verts.push(createVector(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])));
+    } else if (parts[0] === "vn") {
+      norms.push(createVector(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])));
+    } else if (parts[0] === "vt") {
+      texCoords.push(createVector(parseFloat(parts[1]), parseFloat(parts[2])));
+    } else if (parts[0] === "f") {
+      let face = [];
+      for (let i = 1; i < parts.length; i++) {
+        let indices = parts[i].split("/");
+        let vIdx = parseInt(indices[0]) - 1;
+        let uvIdx = indices[1] ? parseInt(indices[1]) - 1 : -1;
+        let nIdx = indices[2] ? parseInt(indices[2]) - 1 : -1;
+        face.push({ v: vIdx, uv: uvIdx, n: nIdx });
+      }
+      faces.push(face);
+    }
+  }
+}
+
+function createVector(x, y, z = 0) {
+  return { x: x, y: y, z: z };
+}
+
+function to(name) {
+  let meshData = "version 1.00\n";
+  meshData += `${faces.length}\n`;
+  for (let face of faces) {
+    for (let i = 0; i < face.length; i++) {
+      let vIdx = face[i].v;
+      let uvIdx = face[i].uv;
+      let nIdx = face[i].n;
+      let p = verts[vIdx];
+      let n = nIdx >= 0 ? norms[nIdx] : createVector(0, 0, 0);
+      let uv = uvIdx >= 0 ? texCoords[uvIdx] : createVector(0, 0);
+      meshData += `[${p.x.toFixed(6)}, ${p.y.toFixed(6)}, ${p.z.toFixed(6)}]`;
+      meshData += `[${n.x.toFixed(5)}, ${n.y.toFixed(5)}, ${n.z.toFixed(5)}]`;
+      meshData += `[${uv.x.toFixed(5)}, ${uv.y.toFixed(5)}, 0]\n`;
+    }
+  }
+  console.log(meshData);
+  saveData(meshData, name.split(".")[0] + ".mesh");
+}
+</script>
+</body>
+</html>
